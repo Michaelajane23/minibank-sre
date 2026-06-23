@@ -36,22 +36,30 @@ function pushMetrics() {
   const counters = metrics.getCounters();
   const status = failureInjector.getStatus();
 
-  const now = Date.now();
+  // Prometheus text exposition format (no timestamps — server uses receive time)
   const lines = [
-    `minibank_error_rate_percent ${summary.errorRate} ${now}`,
-    `minibank_request_rate_5m ${summary.requests} ${now}`,
-    `minibank_transfers_total ${counters.transfers} ${now}`,
-    `minibank_failed_transfers_total ${counters.failedTransfers} ${now}`,
-    `minibank_login_failures_total ${counters.loginFailures} ${now}`,
-    `minibank_card_freezes_total ${counters.cardFreezes} ${now}`,
-    `minibank_database_connection_errors_total ${counters.dbErrors} ${now}`
+    `# TYPE minibank_error_rate_percent gauge`,
+    `minibank_error_rate_percent ${summary.errorRate}`,
+    `# TYPE minibank_request_rate_5m gauge`,
+    `minibank_request_rate_5m ${summary.requests}`,
+    `# TYPE minibank_transfers_total counter`,
+    `minibank_transfers_total ${counters.transfers}`,
+    `# TYPE minibank_failed_transfers_total counter`,
+    `minibank_failed_transfers_total ${counters.failedTransfers}`,
+    `# TYPE minibank_login_failures_total counter`,
+    `minibank_login_failures_total ${counters.loginFailures}`,
+    `# TYPE minibank_card_freezes_total counter`,
+    `minibank_card_freezes_total ${counters.cardFreezes}`,
+    `# TYPE minibank_database_connection_errors_total counter`,
+    `minibank_database_connection_errors_total ${counters.dbErrors}`,
+    `# TYPE minibank_service_healthy gauge`
   ];
 
   Object.entries(status).forEach(([svc, config]) => {
-    lines.push(`minibank_service_healthy{service="${svc}"} ${config.state === 'healthy' ? 1 : 0} ${now}`);
+    lines.push(`minibank_service_healthy{service="${svc}"} ${config.state === 'healthy' ? 1 : 0}`);
   });
 
-  const payload = lines.join('\n');
+  const payload = lines.join('\n') + '\n';
   const url = new URL(REMOTE_WRITE_URL);
   const base64creds = Buffer.from(`${METRICS_USER}:${METRICS_TOKEN}`).toString('base64');
 
@@ -62,7 +70,7 @@ function pushMetrics() {
     method: 'POST',
     headers: {
       'Authorization': `Basic ${base64creds}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Type': 'text/plain',
       'Content-Length': Buffer.byteLength(payload)
     }
   };
