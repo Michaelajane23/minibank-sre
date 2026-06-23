@@ -24,6 +24,7 @@ const webhookRoutes = require('./routes/webhooks');
 const sloRoutes = require('./routes/slo');
 const chaosRoutes = require('./routes/chaos');
 const { missionsRoutes, missionsApiRoutes } = require('./routes/missions');
+const incidentRoutes = require('./routes/incidents');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -59,6 +60,7 @@ app.use('/', webhookRoutes);
 app.use('/', sloRoutes);
 app.use('/', chaosRoutes);
 app.use('/', missionsRoutes);
+app.use('/', incidentRoutes);
 
 // Serve built frontend in production
 app.use(express.static(path.join(__dirname, '..', 'dist')));

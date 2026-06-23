@@ -16,7 +16,8 @@ export default defineConfig({
       '/webhooks': { target: 'http://localhost:3000', changeOrigin: true },
       '/slo': { target: 'http://localhost:3000', changeOrigin: true },
       '/chaos': { target: 'http://localhost:3000', changeOrigin: true },
-      '/missions': { target: 'http://localhost:3000', changeOrigin: true }
+      '/missions': { target: 'http://localhost:3000', changeOrigin: true },
+      '/incidents': { target: 'http://localhost:3000', changeOrigin: true }
     }
   },
   build: {

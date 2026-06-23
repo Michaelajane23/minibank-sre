@@ -4,6 +4,7 @@
 
 const { failureInjector } = require('./failure');
 const { logger } = require('./logger');
+const { incidentManager } = require('./incidents');
 
 // Simpler scenarios for auto-triggering (shorter, less severe)
 const CHAOS_SCENARIOS = [
@@ -187,8 +188,21 @@ class ChaosEngine {
     // Inject the failure
     scenario.inject();
 
+    // Auto-create a ServiceNow-style incident ticket for the student
+    const severityMap = { low: 'P3', medium: 'P2', high: 'P1', critical: 'P1' };
+    const ticket = incidentManager.create({
+      title: scenario.name,
+      description: scenario.clue,
+      severity: severityMap[scenario.severity] || 'P2',
+      scenarioId: scenario.id,
+      clue: scenario.clue
+    });
+    // Store the root cause on the ticket (hidden from student until they resolve)
+    ticket.rootCause = scenario.rootCause;
+
     logger.warn('chaos-engine', `incident/${scenario.id}`, `INCIDENT STARTED: ${scenario.name}`, {
       incident_id: incident.id,
+      incident_number: ticket.number,
       severity: scenario.severity,
       scenario_id: scenario.id,
       duration_seconds: scenario.duration / 1000

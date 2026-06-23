@@ -13,6 +13,7 @@ import Cards from './pages/Cards';
 import Profile from './pages/Profile';
 import OperatorTraining from './pages/OperatorTraining';
 import StudentMissions from './pages/StudentMissions';
+import Incidents from './pages/Incidents';
 import Welcome from './pages/Welcome';
 import AppLayout from './components/AppLayout';
 
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/sre-training" element={<Welcome />} />
           <Route path="/student-missions" element={<StudentMissions />} />
           <Route path="/operator-training" element={<OperatorTraining />} />
+          <Route path="/incidents" element={<Incidents />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

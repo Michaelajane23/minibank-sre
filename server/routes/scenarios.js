@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { failureInjector } = require('../observability/failure');
 const { logger } = require('../observability/logger');
+const { incidentManager } = require('../observability/incidents');
 
 const router = Router();
 
@@ -150,6 +151,18 @@ router.post('/scenarios/:id/trigger', (req, res) => {
     duration_seconds: scenario.duration / 1000
   });
 
+  // Create an incident ticket for this scenario
+  const severityMap = { 'payment-degraded': 'P2', 'auth-failing': 'P1', 'full-outage': 'P1', 'cascading-failure': 'P1', 'latency-spike': 'P3', 'savings-outage': 'P2', 'fraud-service-down': 'P1', 'database-latency': 'P2', 'payment-partial-failure': 'P2' };
+  const ticket = incidentManager.create({
+    title: scenario.name,
+    description: scenario.hint,
+    severity: severityMap[req.params.id] || 'P2',
+    scenarioId: req.params.id,
+    clue: scenario.hint
+  });
+  // Store root cause (hidden until resolved)
+  ticket.rootCause = scenario.description;
+
   // Apply actions (some may be delayed for cascading)
   const timeouts = [];
   scenario.actions.forEach(action => {
@@ -189,6 +202,7 @@ router.post('/scenarios/:id/trigger', (req, res) => {
   res.status(201).json({
     message: `Scenario "${scenario.name}" triggered`,
     scenario_id: req.params.id,
+    incident_number: ticket.number,
     duration_seconds: scenario.duration / 1000,
     hint: scenario.hint,
     ends_at: new Date(active.endsAt).toISOString()

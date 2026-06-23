@@ -24,7 +24,7 @@ export default function Welcome() {
       </div>
 
       {/* Two main cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         {/* Training Missions card */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col">
           <div className="flex items-center gap-3 mb-3">
@@ -73,6 +73,24 @@ export default function Welcome() {
             Open Console →
           </Link>
           {chaosError && <p className="text-xs text-red-500 mt-2">{chaosError}</p>}
+        </div>
+
+        {/* Incidents card */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-orange-600">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Incidents</h2>
+          </div>
+          <p className="text-sm text-gray-500 mb-4 flex-1">
+            When chaos triggers, incident tickets are created automatically. Pick them up, investigate, and resolve — just like ServiceNow.
+          </p>
+          <Link to="/incidents" className="inline-flex items-center justify-center gap-2 bg-orange-600 text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-orange-700 transition">
+            View Incidents →
+          </Link>
         </div>
       </div>
 
