@@ -1,0 +1,39 @@
+{
+  "name": "minibank",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "node --watch server/index.js",
+    "dev:client": "vite",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "db:init": "node server/database/init.js",
+    "db:seed": "node server/database/seed.js",
+    "db:reset": "node server/database/init.js && node server/database/seed.js",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "express-rate-limit": "^7.1.4",
+    "pg": "^8.11.3",
+    "bcryptjs": "^2.4.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "@tanstack/react-query": "^5.12.0",
+    "chart.js": "^4.4.1",
+    "react-chartjs-2": "^5.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.8",
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.32",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2"
+  }
+}

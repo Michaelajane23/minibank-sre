@@ -1,0 +1,184 @@
+{
+  "info": {
+    "name": "MiniBank SRE Training",
+    "description": "Complete API collection for MiniBank — Banking APIs, SRE endpoints, and Chaos Engineering controls.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Login (Sarah Johnson)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"email\": \"sarah.johnson@minibank.io\", \"password\": \"password123\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["const data = pm.response.json();", "if (data.token) { pm.collectionVariables.set('token', data.token); }", "pm.test('Login successful', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Login (Sarah Connor)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"email\": \"sarah.connor@minibank.io\", \"password\": \"password123\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["const data = pm.response.json();", "if (data.token) { pm.collectionVariables.set('token', data.token); }", "pm.test('Login successful', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Signup (New User)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/signup",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"name\": \"Test Student\", \"email\": \"student@test.com\", \"password\": \"password123\"}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏦 Banking",
+      "item": [
+        {
+          "name": "Get Account",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/account", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        },
+        {
+          "name": "Get Transactions",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/transactions?limit=10", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        },
+        {
+          "name": "Get Payees",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/payees", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        },
+        {
+          "name": "Transfer Money",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/transfer",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": { "mode": "raw", "raw": "{\"payeeId\": \"REPLACE_WITH_PAYEE_ID\", \"amount\": 25.00, \"reference\": \"Test transfer\"}" }
+          }
+        },
+        {
+          "name": "Get Card",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/card", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        },
+        {
+          "name": "Freeze Card",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/card/freeze", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        },
+        {
+          "name": "Unfreeze Card",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/card/unfreeze", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        }
+      ]
+    },
+    {
+      "name": "🔍 SRE Observability",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+        },
+        {
+          "name": "Health Readiness",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health/ready" }
+        },
+        {
+          "name": "Health Detailed",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health/detailed" }
+        },
+        {
+          "name": "Health Integrations",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health/integrations" }
+        },
+        {
+          "name": "Prometheus Metrics",
+          "request": { "method": "GET", "url": "{{baseUrl}}/metrics" }
+        },
+        {
+          "name": "SLO Status",
+          "request": { "method": "GET", "url": "{{baseUrl}}/slo" }
+        }
+      ]
+    },
+    {
+      "name": "💥 Chaos Engineering",
+      "item": [
+        {
+          "name": "List Scenarios",
+          "request": { "method": "GET", "url": "{{baseUrl}}/scenarios" }
+        },
+        {
+          "name": "Trigger: Payment Degraded",
+          "request": { "method": "POST", "url": "{{baseUrl}}/scenarios/payment-degraded/trigger" }
+        },
+        {
+          "name": "Trigger: Auth Failing",
+          "request": { "method": "POST", "url": "{{baseUrl}}/scenarios/auth-failing/trigger" }
+        },
+        {
+          "name": "Trigger: Full Outage",
+          "request": { "method": "POST", "url": "{{baseUrl}}/scenarios/full-outage/trigger" }
+        },
+        {
+          "name": "Trigger: Cascading Failure",
+          "request": { "method": "POST", "url": "{{baseUrl}}/scenarios/cascading-failure/trigger" }
+        },
+        {
+          "name": "Trigger: Fraud Service Down",
+          "request": { "method": "POST", "url": "{{baseUrl}}/scenarios/fraud-service-down/trigger" }
+        },
+        {
+          "name": "Reset All Scenarios",
+          "request": { "method": "POST", "url": "{{baseUrl}}/scenarios/reset" }
+        },
+        {
+          "name": "Chaos Engine: Start",
+          "request": { "method": "POST", "url": "{{baseUrl}}/chaos/start" }
+        },
+        {
+          "name": "Chaos Engine: Stop",
+          "request": { "method": "POST", "url": "{{baseUrl}}/chaos/stop" }
+        },
+        {
+          "name": "Chaos Engine: Status",
+          "request": { "method": "GET", "url": "{{baseUrl}}/chaos" }
+        },
+        {
+          "name": "Chaos Engine: History",
+          "request": { "method": "GET", "url": "{{baseUrl}}/chaos/history" }
+        }
+      ]
+    },
+    {
+      "name": "🎯 Missions",
+      "item": [
+        {
+          "name": "List Missions",
+          "request": { "method": "GET", "url": "{{baseUrl}}/missions" }
+        },
+        {
+          "name": "Mission Detail (ID 1)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/missions/1" }
+        },
+        {
+          "name": "Mission Progress",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/missions/progress", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        },
+        {
+          "name": "Complete Mission (ID 1)",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/missions/1/complete", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] }
+        }
+      ]
+    }
+  ]
+}
