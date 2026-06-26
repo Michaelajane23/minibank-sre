@@ -4,28 +4,34 @@ const https = require('https');
 
 const PUSH_INTERVAL = 15000;
 
-function buildMetricLines() {
+function buildMetricPayload() {
   const summary = metrics.getSummary(5);
   const counters = metrics.getCounters();
   const status = failureInjector.getStatus();
-  const timestamp = Math.floor(Date.now() / 1000);
+  const now = Math.floor(Date.now() / 1000);
+  const interval = 15;
 
-  const lines = [
-    `minibank.error_rate_percent ${summary.errorRate} ${timestamp}`,
-    `minibank.request_rate_5m ${summary.requests} ${timestamp}`,
-    `minibank.transfers_total ${counters.transfers} ${timestamp}`,
-    `minibank.failed_transfers_total ${counters.failedTransfers} ${timestamp}`,
-    `minibank.login_failures_total ${counters.loginFailures} ${timestamp}`,
-    `minibank.card_freezes_total ${counters.cardFreezes} ${timestamp}`,
-    `minibank.database_connection_errors_total ${counters.dbErrors} ${timestamp}`
+  const metricList = [
+    { name: 'minibank.error_rate_percent', value: parseFloat(summary.errorRate) || 0, interval, time: now },
+    { name: 'minibank.request_rate_5m', value: summary.requests || 0, interval, time: now },
+    { name: 'minibank.transfers_total', value: counters.transfers || 0, interval, time: now },
+    { name: 'minibank.failed_transfers_total', value: counters.failedTransfers || 0, interval, time: now },
+    { name: 'minibank.login_failures_total', value: counters.loginFailures || 0, interval, time: now },
+    { name: 'minibank.card_freezes_total', value: counters.cardFreezes || 0, interval, time: now },
+    { name: 'minibank.database_connection_errors_total', value: counters.dbErrors || 0, interval, time: now }
   ];
 
   Object.entries(status).forEach(([svc, config]) => {
     const safeName = svc.replace(/-/g, '_');
-    lines.push(`minibank.service_healthy.${safeName} ${config.state === 'healthy' ? 1 : 0} ${timestamp}`);
+    metricList.push({
+      name: `minibank.service_healthy.${safeName}`,
+      value: config.state === 'healthy' ? 1 : 0,
+      interval,
+      time: now
+    });
   });
 
-  return lines.join('\n') + '\n';
+  return JSON.stringify(metricList);
 }
 
 function pushMetrics() {
@@ -35,9 +41,8 @@ function pushMetrics() {
 
   if (!graphiteUrl || !metricsUser || !metricsToken) return;
 
-  const payload = buildMetricLines();
+  const payload = buildMetricPayload();
   const url = new URL(graphiteUrl);
-  const base64creds = Buffer.from(`${metricsUser}:${metricsToken}`).toString('base64');
 
   const options = {
     hostname: url.hostname,
@@ -46,8 +51,8 @@ function pushMetrics() {
     method: 'POST',
     rejectUnauthorized: false,
     headers: {
-      'Authorization': `Basic ${base64creds}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Bearer ${metricsUser}:${metricsToken}`,
+      'Content-Type': 'application/json',
       'Content-Length': Buffer.byteLength(payload, 'utf8')
     }
   };
