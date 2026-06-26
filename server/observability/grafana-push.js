@@ -46,7 +46,7 @@ function pushMetrics() {
     method: 'POST',
     headers: {
       'Authorization': `Basic ${base64creds}`,
-      'Content-Type': 'text/plain',
+      'Content-Type': 'application/octet-stream',
       'Content-Length': Buffer.byteLength(payload)
     }
   };
