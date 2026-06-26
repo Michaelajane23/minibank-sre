@@ -41,13 +41,14 @@ function pushMetrics() {
 
   const options = {
     hostname: url.hostname,
-    port: url.port || 443,
+    port: 443,
     path: url.pathname,
     method: 'POST',
+    rejectUnauthorized: false,
     headers: {
       'Authorization': `Basic ${base64creds}`,
-      'Content-Type': 'application/octet-stream',
-      'Content-Length': Buffer.byteLength(payload)
+      'Content-Type': 'text/plain',
+      'Content-Length': Buffer.byteLength(payload, 'utf8')
     }
   };
 
@@ -59,7 +60,7 @@ function pushMetrics() {
   });
 
   req.on('error', () => {});
-  req.write(payload);
+  req.write(payload, 'utf8');
   req.end();
 }
 
