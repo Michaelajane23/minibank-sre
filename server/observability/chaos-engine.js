@@ -190,12 +190,26 @@ class ChaosEngine {
 
     // Auto-create a ServiceNow-style incident ticket for the student
     const severityMap = { low: 'P3', medium: 'P2', high: 'P1', critical: 'P1' };
+    const categoryMap = { critical: 'Availability', high: 'Availability', medium: 'Performance', low: 'Performance' };
+    const serviceMap = {
+      'slow-payments': 'payment-service', 'payment-degraded': 'payment-service', 'partial-payment-failure': 'payment-service',
+      'login-errors': 'auth-service', 'auth-failing': 'auth-service',
+      'savings-down': 'savings-service', 'savings-outage': 'savings-service',
+      'account-slow': 'account-service',
+      'transaction-errors': 'transaction-service',
+      'fraud-service-down': 'fraud-service',
+      'ledger-degraded': 'ledger-service',
+      'notification-down': 'notification-service',
+      'everything-slow': 'multiple-services'
+    };
     const ticket = incidentManager.create({
       title: scenario.name,
       description: scenario.clue,
       severity: severityMap[scenario.severity] || 'P2',
       scenarioId: scenario.id,
-      clue: scenario.clue
+      clue: scenario.clue,
+      category: categoryMap[scenario.severity] || 'Performance',
+      affectedService: serviceMap[scenario.id] || 'multiple-services'
     });
     // Store the root cause on the ticket (hidden from student until they resolve)
     ticket.rootCause = scenario.rootCause;
