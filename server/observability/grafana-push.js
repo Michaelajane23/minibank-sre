@@ -53,10 +53,13 @@ function pushMetrics() {
   };
 
   const req = https.request(options, (res) => {
-    res.resume();
-    if (res.statusCode !== 200 && res.statusCode !== 204) {
-      process.stderr.write(`[grafana-push] Non-200 response: ${res.statusCode}\n`);
-    }
+    let body = '';
+    res.on('data', chunk => body += chunk);
+    res.on('end', () => {
+      if (res.statusCode !== 200 && res.statusCode !== 204) {
+        process.stderr.write(`[grafana-push] Non-200 response: ${res.statusCode} — ${body}\n`);
+      }
+    });
   });
 
   req.on('error', () => {});
