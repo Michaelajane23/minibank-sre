@@ -47,7 +47,7 @@ function pushMetrics() {
     rejectUnauthorized: false,
     headers: {
       'Authorization': `Basic ${base64creds}`,
-      'Content-Type': 'text/plain',
+      'Content-Type': 'application/x-www-form-urlencoded',
       'Content-Length': Buffer.byteLength(payload, 'utf8')
     }
   };
