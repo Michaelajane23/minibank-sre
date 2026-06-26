@@ -73,6 +73,7 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   logger.info('server', 'startup', `MiniBank server running on port ${PORT}`);
   console.log(`\n🏦 MiniBank server running on http://localhost:${PORT}\n`);
+  console.log('[startup] Calling startGrafanaPush...');
   startGrafanaPush();
 });
 

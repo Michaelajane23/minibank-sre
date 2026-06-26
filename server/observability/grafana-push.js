@@ -64,6 +64,7 @@ async function pushMetrics() {
 }
 
 function startGrafanaPush() {
+  console.log('[grafana-push] startGrafanaPush called, URL:', process.env.GRAFANA_REMOTE_WRITE_URL ? 'SET' : 'NOT SET');
   if (!REMOTE_WRITE_URL || !METRICS_USER || !METRICS_TOKEN) return;
 
   process.stdout.write(JSON.stringify({
