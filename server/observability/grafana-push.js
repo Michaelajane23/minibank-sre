@@ -1,50 +1,47 @@
-const { register, Gauge, Counter } = require('prom-client');
 const { metrics } = require('./metrics');
 const { failureInjector } = require('./failure');
 const https = require('https');
 
 const PUSH_INTERVAL = 15000;
 
-// Define metrics on the default prom-client registry
-const errorRate = new Gauge({ name: 'minibank_error_rate_percent', help: 'Error rate 5m window' });
-const requestRate = new Gauge({ name: 'minibank_request_rate_5m', help: 'Requests in 5m window' });
-const transfers = new Gauge({ name: 'minibank_transfers_total', help: 'Total transfers' });
-const failedTransfers = new Gauge({ name: 'minibank_failed_transfers_total', help: 'Failed transfers' });
-const loginFailures = new Gauge({ name: 'minibank_login_failures_total', help: 'Login failures' });
-const cardFreezes = new Gauge({ name: 'minibank_card_freezes_total', help: 'Card freezes' });
-const dbErrors = new Gauge({ name: 'minibank_database_connection_errors_total', help: 'DB errors' });
-const serviceHealthy = new Gauge({ name: 'minibank_service_healthy', help: 'Service health', labelNames: ['service'] });
-
-async function pushMetrics() {
-  const remoteWriteUrl = process.env.GRAFANA_REMOTE_WRITE_URL;
-  const metricsUser = process.env.GRAFANA_METRICS_USER;
-  const metricsToken = process.env.GRAFANA_METRICS_TOKEN;
-
-  if (!remoteWriteUrl || !metricsUser || !metricsToken) return;
-
+function buildMetricLines() {
   const summary = metrics.getSummary(5);
   const counters = metrics.getCounters();
   const status = failureInjector.getStatus();
+  const timestamp = Math.floor(Date.now() / 1000);
 
-  errorRate.set(parseFloat(summary.errorRate));
-  requestRate.set(summary.requests);
-  transfers.set(counters.transfers);
-  failedTransfers.set(counters.failedTransfers);
-  loginFailures.set(counters.loginFailures);
-  cardFreezes.set(counters.cardFreezes);
-  dbErrors.set(counters.dbErrors);
+  const lines = [
+    `minibank.error_rate_percent ${summary.errorRate} ${timestamp}`,
+    `minibank.request_rate_5m ${summary.requests} ${timestamp}`,
+    `minibank.transfers_total ${counters.transfers} ${timestamp}`,
+    `minibank.failed_transfers_total ${counters.failedTransfers} ${timestamp}`,
+    `minibank.login_failures_total ${counters.loginFailures} ${timestamp}`,
+    `minibank.card_freezes_total ${counters.cardFreezes} ${timestamp}`,
+    `minibank.database_connection_errors_total ${counters.dbErrors} ${timestamp}`
+  ];
 
   Object.entries(status).forEach(([svc, config]) => {
-    serviceHealthy.labels(svc).set(config.state === 'healthy' ? 1 : 0);
+    const safeName = svc.replace(/-/g, '_');
+    lines.push(`minibank.service_healthy.${safeName} ${config.state === 'healthy' ? 1 : 0} ${timestamp}`);
   });
 
-  const payload = await register.metrics();
+  return lines.join('\n') + '\n';
+}
+
+function pushMetrics() {
+  const graphiteUrl = process.env.GRAFANA_GRAPHITE_URL;
+  const metricsUser = process.env.GRAFANA_METRICS_USER;
+  const metricsToken = process.env.GRAFANA_METRICS_TOKEN;
+
+  if (!graphiteUrl || !metricsUser || !metricsToken) return;
+
+  const payload = buildMetricLines();
+  const url = new URL(graphiteUrl);
   const base64creds = Buffer.from(`${metricsUser}:${metricsToken}`).toString('base64');
-  const url = new URL(remoteWriteUrl);
 
   const options = {
     hostname: url.hostname,
-    port: 443,
+    port: url.port || 443,
     path: url.pathname,
     method: 'POST',
     headers: {
@@ -67,22 +64,27 @@ async function pushMetrics() {
 }
 
 function startGrafanaPush() {
-  const remoteWriteUrl = process.env.GRAFANA_REMOTE_WRITE_URL;
+  const graphiteUrl = process.env.GRAFANA_GRAPHITE_URL;
   const metricsUser = process.env.GRAFANA_METRICS_USER;
   const metricsToken = process.env.GRAFANA_METRICS_TOKEN;
 
-  console.log('[grafana-push] startGrafanaPush called, URL:', remoteWriteUrl ? 'SET' : 'NOT SET');
+  console.log('[grafana-push] startGrafanaPush called, URL:', graphiteUrl ? 'SET' : 'NOT SET');
 
-  if (!remoteWriteUrl || !metricsUser || !metricsToken) return;
+  if (!graphiteUrl || !metricsUser || !metricsToken) {
+    console.log('[grafana-push] Skipping — env vars not set. URL:', graphiteUrl ? 'SET' : 'NOT SET');
+    return;
+  }
 
   process.stdout.write(JSON.stringify({
     timestamp: new Date().toISOString(),
     service_name: 'grafana-push',
     severity: 'INFO',
-    message: `Grafana remote write enabled → pushing every ${PUSH_INTERVAL / 1000}s`
+    message: `Grafana Graphite push enabled → ${graphiteUrl} every ${PUSH_INTERVAL / 1000}s`
   }) + '\n');
 
-  setInterval(() => pushMetrics().catch(() => {}), PUSH_INTERVAL);
+  setInterval(() => {
+    try { pushMetrics(); } catch (e) {}
+  }, PUSH_INTERVAL);
 }
 
 module.exports = { startGrafanaPush };
