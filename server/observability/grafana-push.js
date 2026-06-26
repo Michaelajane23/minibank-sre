@@ -3,9 +3,6 @@ const { metrics } = require('./metrics');
 const { failureInjector } = require('./failure');
 const https = require('https');
 
-const REMOTE_WRITE_URL = process.env.GRAFANA_REMOTE_WRITE_URL || null;
-const METRICS_USER = process.env.GRAFANA_METRICS_USER || null;
-const METRICS_TOKEN = process.env.GRAFANA_METRICS_TOKEN || null;
 const PUSH_INTERVAL = 15000;
 
 // Define metrics on the default prom-client registry
@@ -19,6 +16,12 @@ const dbErrors = new Gauge({ name: 'minibank_database_connection_errors_total', 
 const serviceHealthy = new Gauge({ name: 'minibank_service_healthy', help: 'Service health', labelNames: ['service'] });
 
 async function pushMetrics() {
+  const remoteWriteUrl = process.env.GRAFANA_REMOTE_WRITE_URL;
+  const metricsUser = process.env.GRAFANA_METRICS_USER;
+  const metricsToken = process.env.GRAFANA_METRICS_TOKEN;
+
+  if (!remoteWriteUrl || !metricsUser || !metricsToken) return;
+
   const summary = metrics.getSummary(5);
   const counters = metrics.getCounters();
   const status = failureInjector.getStatus();
@@ -36,8 +39,8 @@ async function pushMetrics() {
   });
 
   const payload = await register.metrics();
-  const base64creds = Buffer.from(`${METRICS_USER}:${METRICS_TOKEN}`).toString('base64');
-  const url = new URL(REMOTE_WRITE_URL);
+  const base64creds = Buffer.from(`${metricsUser}:${metricsToken}`).toString('base64');
+  const url = new URL(remoteWriteUrl);
 
   const options = {
     hostname: url.hostname,
@@ -64,8 +67,13 @@ async function pushMetrics() {
 }
 
 function startGrafanaPush() {
-  console.log('[grafana-push] startGrafanaPush called, URL:', process.env.GRAFANA_REMOTE_WRITE_URL ? 'SET' : 'NOT SET');
-  if (!REMOTE_WRITE_URL || !METRICS_USER || !METRICS_TOKEN) return;
+  const remoteWriteUrl = process.env.GRAFANA_REMOTE_WRITE_URL;
+  const metricsUser = process.env.GRAFANA_METRICS_USER;
+  const metricsToken = process.env.GRAFANA_METRICS_TOKEN;
+
+  console.log('[grafana-push] startGrafanaPush called, URL:', remoteWriteUrl ? 'SET' : 'NOT SET');
+
+  if (!remoteWriteUrl || !metricsUser || !metricsToken) return;
 
   process.stdout.write(JSON.stringify({
     timestamp: new Date().toISOString(),
