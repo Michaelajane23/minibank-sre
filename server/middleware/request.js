@@ -34,7 +34,9 @@ function processRequest(req, res, next, injection) {
       status_code: status,
       response_time_ms: Date.now() - req.startTime,
       severity: 'ERROR',
-      message: 'Injected failure'
+      message: 'Injected failure',
+      user_id: req.userId || null,
+      user_email: req.userEmail || null
     });
     metrics.record(req.serviceName, status, Date.now() - req.startTime);
     return res.status(status).json({ error: 'Service unavailable', correlation_id: req.correlationId });
@@ -50,7 +52,8 @@ function processRequest(req, res, next, injection) {
       status_code: res.statusCode,
       response_time_ms: duration,
       severity: res.statusCode >= 500 ? 'ERROR' : res.statusCode >= 400 ? 'WARN' : 'INFO',
-      user_id: req.userId || null
+      user_id: req.userId || null,
+      user_email: req.userEmail || null
     });
     metrics.record(req.serviceName, res.statusCode, duration);
   });
