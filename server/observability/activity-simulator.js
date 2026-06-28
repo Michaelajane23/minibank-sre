@@ -8,7 +8,7 @@ const { failureInjector } = require('./failure');
 const { query } = require('../database/pool');
 const { addTransaction } = require('../data/store');
 
-let users = []; // { id, accountId }
+let users = []; // { id, email, accountId }
 
 const TRANSFER_DESCRIPTIONS = [
   'Coffee shop', 'Lunch', 'Online shopping', 'Subscription',
@@ -18,6 +18,17 @@ const TRANSFER_DESCRIPTIONS = [
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function randFloat(min, max) { return parseFloat((Math.random() * (max - min) + min).toFixed(2)); }
+
+function serviceHealthy(serviceName) {
+  const status = failureInjector.getStatus();
+  const svc = status[serviceName];
+  return !svc || svc.state === 'healthy';
+}
+
+function serviceLatency(serviceName) {
+  const status = failureInjector.getStatus();
+  return status[serviceName]?.latencyMs || 0;
+}
 
 // Schedule a recurring activity with jitter
 function schedule(fn, minMs, maxMs) {
@@ -32,33 +43,42 @@ function schedule(fn, minMs, maxMs) {
 
 function simulateLogin() {
   const user = pick(users);
+  const healthy = serviceHealthy('auth-service');
+  const latency = serviceLatency('auth-service');
+
   logger.log({
     timestamp: new Date().toISOString(),
     correlation_id: uuidv4(),
-    service_name: 'activity-simulator',
+    service_name: 'auth-service',
     endpoint: 'POST /api/login',
-    severity: 'INFO',
-    message: 'Simulated customer login',
+    severity: healthy ? 'INFO' : 'ERROR',
+    message: healthy ? 'Simulated customer login'
+      : 'Simulated login failed — auth service returning errors',
     user_id: user.id,
     user_email: user.email,
-    status_code: 200,
-    response_time_ms: rand(5, 25)
+    status_code: healthy ? 200 : 500,
+    response_time_ms: rand(5, 25) + latency
   });
 }
 
 function simulateBalanceCheck() {
   const user = pick(users);
+  const healthy = serviceHealthy('account-service');
+  const latency = serviceLatency('account-service');
+
   logger.log({
     timestamp: new Date().toISOString(),
     correlation_id: uuidv4(),
     service_name: 'account-service',
     endpoint: 'GET /account',
-    severity: 'INFO',
-    message: 'Account balance checked',
+    severity: healthy ? 'INFO' : (latency > 500 ? 'WARN' : 'ERROR'),
+    message: healthy ? 'Account balance checked'
+      : latency > 1000 ? 'Account lookup slow — elevated latency detected'
+      : 'Account lookup failed — service unavailable',
     user_id: user.id,
     user_email: user.email,
-    status_code: 200,
-    response_time_ms: rand(2, 8)
+    status_code: healthy ? 200 : (latency > 0 && failureInjector.getStatus()['account-service']?.errorRate === 0 ? 200 : 500),
+    response_time_ms: rand(2, 8) + latency
   });
 }
 
@@ -72,23 +92,23 @@ async function simulateTransfer() {
   const description = pick(TRANSFER_DESCRIPTIONS);
   const correlationId = uuidv4();
 
-  // Check if payment-service is healthy
-  const status = failureInjector.getStatus();
-  const paymentHealthy = status['payment-service']?.state === 'healthy';
+  const paymentHealthy = serviceHealthy('payment-service');
+  const fraudHealthy = serviceHealthy('fraud-service');
 
-  if (!paymentHealthy) {
+  if (!paymentHealthy || !fraudHealthy) {
     logger.log({
       timestamp: new Date().toISOString(),
       correlation_id: correlationId,
-      service_name: 'payment-service',
+      service_name: !fraudHealthy ? 'fraud-service' : 'payment-service',
       endpoint: 'POST /api/transfer',
       severity: 'ERROR',
-      message: 'Simulated transfer failed — payment service degraded',
+      message: !fraudHealthy ? 'Simulated transfer blocked — fraud service unavailable'
+        : 'Simulated transfer failed — payment service degraded',
       user_id: from.id,
       user_email: from.email,
       amount,
       status_code: 503,
-      response_time_ms: rand(2000, 5000)
+      response_time_ms: rand(100, 500)
     });
     return;
   }
@@ -105,7 +125,6 @@ async function simulateTransfer() {
       type: 'debit'
     });
   } catch (e) {
-    // DB might not be available — silently skip
     return;
   }
 
@@ -139,26 +158,30 @@ function simulateFailedLogin() {
 }
 
 function simulateSlowRequest() {
-  // Only fire when no chaos is active
   const status = failureInjector.getStatus();
-  const allHealthy = Object.values(status).every(s => s.state === 'healthy');
-  if (!allHealthy) return;
+  // Find services with elevated latency but no errors (the everything-slow pattern)
+  const slowButHealthy = Object.entries(status)
+    .filter(([_, cfg]) => cfg.latencyMs > 500 && cfg.errorRate === 0)
+    .map(([name]) => name);
 
+  // Only fire if there are services with elevated latency and no errors
+  if (slowButHealthy.length === 0) return;
+
+  const serviceName = pick(slowButHealthy);
+  const latency = status[serviceName].latencyMs;
   const user = pick(users);
-  const services = ['payment-service', 'account-service', 'transaction-service'];
-  const endpoints = ['GET /account', 'GET /transactions', 'POST /api/transfer'];
 
   logger.log({
     timestamp: new Date().toISOString(),
     correlation_id: uuidv4(),
-    service_name: pick(services),
-    endpoint: pick(endpoints),
-    severity: 'INFO',
-    message: 'Request completed with elevated latency',
+    service_name: serviceName,
+    endpoint: pick(['GET /account', 'GET /transactions', 'POST /api/transfer']),
+    severity: 'WARN',
+    message: `Elevated latency detected — ${serviceName} responding slowly`,
     user_id: user.id,
     user_email: user.email,
     status_code: 200,
-    response_time_ms: rand(800, 2000)
+    response_time_ms: rand(latency, latency + 500)
   });
 }
 
@@ -175,6 +198,46 @@ function simulateCardFreeze() {
     user_email: user.email,
     status_code: 200,
     response_time_ms: rand(10, 30)
+  });
+}
+
+function simulateSavingsAccess() {
+  const user = pick(users);
+  const healthy = serviceHealthy('savings-service');
+
+  logger.log({
+    timestamp: new Date().toISOString(),
+    correlation_id: uuidv4(),
+    service_name: 'savings-service',
+    endpoint: 'GET /pots',
+    severity: healthy ? 'INFO' : 'ERROR',
+    message: healthy ? 'Savings pots accessed'
+      : 'Savings pots unavailable — service down',
+    user_id: user.id,
+    user_email: user.email,
+    status_code: healthy ? 200 : 503,
+    response_time_ms: healthy ? rand(3, 10) : rand(0, 5)
+  });
+}
+
+function simulateTransactionHistory() {
+  const user = pick(users);
+  const healthy = serviceHealthy('transaction-service');
+  const latency = serviceLatency('transaction-service');
+
+  logger.log({
+    timestamp: new Date().toISOString(),
+    correlation_id: uuidv4(),
+    service_name: 'transaction-service',
+    endpoint: 'GET /transactions',
+    severity: healthy ? 'INFO' : 'ERROR',
+    message: healthy
+      ? 'Transaction history loaded'
+      : 'Transaction history failed — query timeout',
+    user_id: user.id,
+    user_email: user.email,
+    status_code: healthy ? 200 : 500,
+    response_time_ms: rand(5, 15) + latency
   });
 }
 
@@ -218,8 +281,10 @@ async function startActivitySimulator() {
   schedule(simulateBalanceCheck, 15000, 45000);
   schedule(() => simulateTransfer().catch(() => {}), 15000, 45000);
   schedule(simulateFailedLogin, 120000, 300000);
-  schedule(simulateSlowRequest, 90000, 240000);
+  schedule(simulateSlowRequest, 10000, 30000);
   schedule(simulateCardFreeze, 180000, 400000);
+  schedule(simulateSavingsAccess, 20000, 60000);
+  schedule(simulateTransactionHistory, 20000, 60000);
 }
 
 module.exports = { startActivitySimulator };
