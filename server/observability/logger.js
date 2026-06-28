@@ -66,6 +66,14 @@ function flushSplunk() {
   };
 
   const req = transport.request(options, (res) => {
+    // Handle redirects
+    if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 303) {
+      const redirectUrl = new URL(res.headers.location);
+      // retry with redirected URL — log it once
+      process.stderr.write(`[splunk-hec] Redirected to: ${redirectUrl.href}\n`);
+      res.resume();
+      return;
+    }
     // Consume response to free up socket
     res.resume();
     if (res.statusCode !== 200) {
