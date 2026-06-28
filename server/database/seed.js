@@ -192,6 +192,90 @@ async function seed() {
     console.log(`  ✓ Ledger failure scenario seeded for sarah.johnson@minibank.io (Mission 2)`);
   }
 
+  // --- Seed additional demo users (8 more for realistic activity) ---
+  const ADDITIONAL_USERS = [
+    { firstName: 'James', lastName: 'Wilson', email: 'james.wilson@minibank.io', balance: 2340.50, lastFour: '4521' },
+    { firstName: 'Emma', lastName: 'Thompson', email: 'emma.thompson@minibank.io', balance: 892.00, lastFour: '7823' },
+    { firstName: 'Oliver', lastName: 'Brown', email: 'oliver.brown@minibank.io', balance: 5100.75, lastFour: '3367' },
+    { firstName: 'Sophie', lastName: 'Davis', email: 'sophie.davis@minibank.io', balance: 156.20, lastFour: '9914' },
+    { firstName: 'Liam', lastName: 'Harris', email: 'liam.harris@minibank.io', balance: 3750.00, lastFour: '6642' },
+    { firstName: 'Amelia', lastName: 'Clark', email: 'amelia.clark@minibank.io', balance: 1280.90, lastFour: '1198' },
+    { firstName: 'Noah', lastName: 'Walker', email: 'noah.walker@minibank.io', balance: 4500.00, lastFour: '8854' },
+    { firstName: 'Isla', lastName: 'Robinson', email: 'isla.robinson@minibank.io', balance: 620.45, lastFour: '2277' }
+  ];
+
+  const TX_TEMPLATES = [
+    { desc: 'Rent', cat: 'bills', type: 'debit', min: 600, max: 1200 },
+    { desc: 'Groceries', cat: 'groceries', type: 'debit', min: 15, max: 85 },
+    { desc: 'Netflix', cat: 'entertainment', type: 'debit', min: 10, max: 16 },
+    { desc: 'Spotify', cat: 'entertainment', type: 'debit', min: 10, max: 11 },
+    { desc: 'Amazon', cat: 'entertainment', type: 'debit', min: 8, max: 100 },
+    { desc: 'Gym membership', cat: 'bills', type: 'debit', min: 25, max: 50 },
+    { desc: 'Coffee', cat: 'groceries', type: 'debit', min: 2, max: 6 },
+    { desc: 'Takeaway', cat: 'groceries', type: 'debit', min: 12, max: 35 },
+    { desc: 'Transport', cat: 'transport', type: 'debit', min: 2, max: 15 },
+    { desc: 'Electricity bill', cat: 'bills', type: 'debit', min: 50, max: 120 },
+    { desc: 'Phone bill', cat: 'bills', type: 'debit', min: 20, max: 45 },
+    { desc: 'Online shopping', cat: 'entertainment', type: 'debit', min: 15, max: 80 },
+    { desc: 'Salary', cat: 'income', type: 'credit', min: 2200, max: 3500 },
+    { desc: 'Transfer received', cat: 'transfers', type: 'credit', min: 20, max: 200 },
+    { desc: 'Refund', cat: 'transfers', type: 'credit', min: 5, max: 60 }
+  ];
+
+  const additionalAccountIds = [];
+
+  for (const user of ADDITIONAL_USERS) {
+    const userId = uuidv4();
+    const accountId = uuidv4();
+    additionalAccountIds.push(accountId);
+    const accountNumber = String(Math.floor(10000000 + Math.random() * 90000000));
+
+    await pool.query(
+      'INSERT INTO users (id, first_name, last_name, email, password_hash) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (email) DO NOTHING',
+      [userId, user.firstName, user.lastName, user.email, passwordHash]
+    );
+
+    await pool.query(
+      'INSERT INTO accounts (id, user_id, account_number, balance) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
+      [accountId, userId, accountNumber, user.balance]
+    );
+
+    await pool.query(
+      'INSERT INTO cards (user_id, last_four, holder_name, expiry) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
+      [userId, user.lastFour, `${user.firstName} ${user.lastName}`.toUpperCase(), '12/28']
+    );
+
+    // Payees — link to other additional users
+    const payeePool = ADDITIONAL_USERS.filter(u => u.email !== user.email);
+    const p1 = payeePool[Math.floor(Math.random() * payeePool.length)];
+    let p2 = payeePool[Math.floor(Math.random() * payeePool.length)];
+    while (p2.email === p1.email) { p2 = payeePool[Math.floor(Math.random() * payeePool.length)]; }
+
+    await pool.query(
+      'INSERT INTO payees (user_id, name, sort_code, account_number) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
+      [userId, `${p1.firstName} ${p1.lastName}`, '04-00-04', String(Math.floor(10000000 + Math.random() * 90000000))]
+    );
+    await pool.query(
+      'INSERT INTO payees (user_id, name, sort_code, account_number) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
+      [userId, `${p2.firstName} ${p2.lastName}`, '04-00-04', String(Math.floor(10000000 + Math.random() * 90000000))]
+    );
+
+    // 15 transactions per user spread across last 90 days
+    for (let i = 0; i < 15; i++) {
+      const t = TX_TEMPLATES[Math.floor(Math.random() * TX_TEMPLATES.length)];
+      const amount = parseFloat((Math.random() * (t.max - t.min) + t.min).toFixed(2));
+      const daysAgo = Math.floor(Math.random() * 90) + 1;
+
+      await pool.query(
+        `INSERT INTO transactions (from_account, amount, status, description, category, type, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW() - INTERVAL '${daysAgo} days' - INTERVAL '${Math.floor(Math.random() * 12)} hours')`,
+        [accountId, amount, 'SUCCESS', t.desc, t.cat, t.type]
+      );
+    }
+
+    console.log(`  ✓ ${user.firstName} ${user.lastName} (${user.email}) — £${user.balance.toFixed(2)}`);
+  }
+
   // Seed some audit logs
   const severities = ['INFO', 'INFO', 'INFO', 'WARN', 'ERROR'];
   const actions = ['login', 'transfer', 'card_freeze', 'balance_check', 'failed_login'];
