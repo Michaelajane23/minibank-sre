@@ -40,6 +40,7 @@ function simulateLogin() {
     severity: 'INFO',
     message: 'Simulated customer login',
     user_id: user.id,
+    user_email: user.email,
     status_code: 200,
     response_time_ms: rand(5, 25)
   });
@@ -55,6 +56,7 @@ function simulateBalanceCheck() {
     severity: 'INFO',
     message: 'Account balance checked',
     user_id: user.id,
+    user_email: user.email,
     status_code: 200,
     response_time_ms: rand(2, 8)
   });
@@ -83,6 +85,7 @@ async function simulateTransfer() {
       severity: 'ERROR',
       message: 'Simulated transfer failed — payment service degraded',
       user_id: from.id,
+      user_email: from.email,
       amount,
       status_code: 503,
       response_time_ms: rand(2000, 5000)
@@ -114,6 +117,7 @@ async function simulateTransfer() {
     severity: 'INFO',
     message: 'Simulated transfer completed',
     user_id: from.id,
+    user_email: from.email,
     amount,
     status_code: 201,
     response_time_ms: rand(80, 200)
@@ -152,6 +156,7 @@ function simulateSlowRequest() {
     severity: 'INFO',
     message: 'Request completed with elevated latency',
     user_id: user.id,
+    user_email: user.email,
     status_code: 200,
     response_time_ms: rand(800, 2000)
   });
@@ -167,6 +172,7 @@ function simulateCardFreeze() {
     severity: 'INFO',
     message: 'Card freeze requested by customer',
     user_id: user.id,
+    user_email: user.email,
     status_code: 200,
     response_time_ms: rand(10, 30)
   });
@@ -177,9 +183,9 @@ function simulateCardFreeze() {
 async function startActivitySimulator() {
   try {
     const result = await query(
-      'SELECT u.id, a.id as account_id FROM users u JOIN accounts a ON a.user_id = u.id'
+      'SELECT u.id, u.email, a.id as account_id FROM users u JOIN accounts a ON a.user_id = u.id'
     );
-    users = result.rows.map(r => ({ id: r.id, accountId: r.account_id }));
+    users = result.rows.map(r => ({ id: r.id, email: r.email, accountId: r.account_id }));
   } catch (e) {
     logger.log({
       timestamp: new Date().toISOString(),
