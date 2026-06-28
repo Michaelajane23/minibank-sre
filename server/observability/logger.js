@@ -66,12 +66,36 @@ function flushSplunk() {
   };
 
   const req = transport.request(options, (res) => {
-    // Handle redirects
+    // Handle redirects — actually follow them
     if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 303) {
-      const redirectUrl = new URL(res.headers.location);
-      // retry with redirected URL — log it once
-      process.stderr.write(`[splunk-hec] Redirected to: ${redirectUrl.href}\n`);
+      const location = res.headers.location;
       res.resume();
+      if (!location) return;
+      process.stderr.write(`[splunk-hec] Following redirect to: ${location}\n`);
+      const redirectUrl = new URL(location);
+      const redirectOptions = {
+        hostname: redirectUrl.hostname,
+        port: 443,
+        path: redirectUrl.pathname + (redirectUrl.search || ''),
+        method: 'POST',
+        rejectUnauthorized: false,
+        headers: {
+          'Authorization': `Splunk ${SPLUNK_HEC_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      };
+      const r2 = https.request(redirectOptions, (res2) => {
+        let body = '';
+        res2.on('data', c => body += c);
+        res2.on('end', () => {
+          if (res2.statusCode !== 200) {
+            process.stderr.write(`[splunk-hec] Redirect response: ${res2.statusCode} — ${body}\n`);
+          }
+        });
+      });
+      r2.on('error', () => {});
+      r2.write(payload);
+      r2.end();
       return;
     }
     // Consume response to free up socket
