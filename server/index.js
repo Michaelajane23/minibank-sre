@@ -7,6 +7,7 @@ const { requestMiddleware } = require('./middleware/request');
 const { errorHandler } = require('./middleware/error');
 const { logger } = require('./observability/logger');
 const { startGrafanaPush } = require('./observability/grafana-push');
+const { startActivitySimulator } = require('./observability/activity-simulator');
 
 // Route modules
 const authRoutes = require('./routes/auth');
@@ -75,6 +76,7 @@ app.listen(PORT, () => {
   console.log(`\n🏦 MiniBank server running on http://localhost:${PORT}\n`);
   console.log('[startup] Calling startGrafanaPush...');
   startGrafanaPush();
+  startActivitySimulator();
 });
 
 module.exports = app;
