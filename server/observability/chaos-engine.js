@@ -114,8 +114,8 @@ class ChaosEngine {
     this.currentIncident = null;
     this.incidentHistory = [];
     this.config = {
-      minIntervalMs: 3 * 60 * 1000,  // At least 3 minutes between incidents
-      maxIntervalMs: 8 * 60 * 1000   // At most 8 minutes between incidents
+      minIntervalMs: 60 * 1000,   // 1 minute minimum
+      maxIntervalMs: 3 * 60 * 1000  // 3 minutes maximum
     };
   }
 
