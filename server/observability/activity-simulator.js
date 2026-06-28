@@ -210,7 +210,7 @@ async function startActivitySimulator() {
   // Start all activity loops with independent jittered intervals
   schedule(simulateLogin, 30000, 90000);
   schedule(simulateBalanceCheck, 15000, 45000);
-  schedule(() => simulateTransfer().catch(() => {}), 60000, 180000);
+  schedule(() => simulateTransfer().catch(() => {}), 15000, 45000);
   schedule(simulateFailedLogin, 120000, 300000);
   schedule(simulateSlowRequest, 90000, 240000);
   schedule(simulateCardFreeze, 180000, 400000);
